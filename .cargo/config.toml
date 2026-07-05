@@ -1,0 +1,5 @@
+# compiler keeps using xmm vectors
+# letting it know it can resort to better SIMD vectors (ymm or zmm)
+
+[build]
+rustflags = ["-C", "target-cpu=native"]
