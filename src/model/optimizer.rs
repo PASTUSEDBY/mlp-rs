@@ -32,6 +32,17 @@ impl Optimizer {
         exps: &[&[f64]],
         epochs: usize,
     ) -> Result<(), ModelError> {
+        self.train_print_epoch(network, inputs, exps, epochs, None)
+    }
+
+    pub fn train_print_epoch(
+        &self,
+        network: &mut Network,
+        inputs: &[&[f64]],
+        exps: &[&[f64]],
+        epochs: usize,
+        to_print: Option<bool>,
+    ) -> Result<(), ModelError> {
         // we need some checks for cross entropy loss
         if let Loss::CrossEntropy = self.loss {
             let last = network.layers.last().unwrap(); // should be safe
@@ -43,6 +54,7 @@ impl Optimizer {
             }
         }
 
+        let to_print = to_print.unwrap_or(false);
         let mut rng = rngfn();
         let mut indices: Vec<usize> = (0..inputs.len()).collect();
         let mut grads: Vec<LayerGradient> = network
@@ -54,8 +66,11 @@ impl Optimizer {
             })
             .collect();
 
-        for _ in 0..epochs {
+        for epoch in 0..epochs {
             // shuffle the input and feed it
+            if to_print {
+                println!("In Epoch {} right now.", epoch + 1);
+            }
             indices.shuffle(&mut rng);
             for inp_indices in indices.chunks(self.batch_size) {
                 // and let's zero the grads cache out

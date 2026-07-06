@@ -40,11 +40,11 @@ network.save(&mut file);
 - Arbitrary number of layers initialization, specifying neurons and Activation strategy per layer
 - Saving/loading the Network to a binary format
 
-### Some examples are specified in the `examples`, you can try running one by `cargo run --release --example <file>`. The `main.rs` has the XOR example copied.
+**Some examples are specified in the `examples`, you can try running one by `cargo run --release --example <file>`. The `main.rs` has the XOR example copied.**
 
 ## Examples
 - [XOR](examples/xor.rs): The usual, learns the XOR gate.
 - [MNIST](examples/mnist.rs): Classifying a set of handwritten digit dataset.
 - [Function Approximation](examples/func.rs): Only approximates `sin(x)` from `-10π to 10π`.
 
-> The [`trained_models`](trained_models/) directory contains the binary models for `Function Approximation` and `MNIST` for quicker access. Specifically, for now, the `MNIST` model has an accuracy of `97.24%` over the official data set of `10,000` images after about 6 training sessions.
+> The [`trained_models`](trained_models/) directory contains the binary models for `Function Approximation` and `MNIST` for quicker access. Specifically, for now, the `MNIST` model has an accuracy of `97.36%` over the official data set of `10,000` images after about 1,100 epochs on the training set.

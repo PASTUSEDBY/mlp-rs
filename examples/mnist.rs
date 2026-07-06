@@ -96,7 +96,9 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    println!("Enter if you wanna [train] the model, [test] or [predict <image_path>]: ");
+    println!(
+        "Enter if you wanna [train [epochs = 10]] the model, [test] or [predict <image_path>]: "
+    );
     let mut line = String::new();
     io::stdin().read_line(&mut line)?;
     let (option, rest) = line
@@ -106,23 +108,23 @@ fn main() -> anyhow::Result<()> {
 
     match option.as_ref() {
         "train" => {
-            for i in 0..10usize {
-                let data = load_dataset(MNIST_TRAIN, 10000, 50_000)?;
-                let inputs: Vec<&[f64]> = data.iter().map(|t| t.data.as_slice()).collect();
-                let expected: Vec<Vec<f64>> = data
-                    .iter()
-                    .map(|t| {
-                        let mut out = vec![0.0; 10];
-                        out[t.output as usize] = 1.0;
-                        out
-                    })
-                    .collect();
-                let expected: Vec<&[f64]> = expected.iter().map(|v| v.as_slice()).collect();
+            println!("Loading full data set, this might take a while to train...");
+            let data = load_dataset(MNIST_TRAIN, 60_000, 1)?;
+            let inputs: Vec<&[f64]> = data.iter().map(|t| t.data.as_slice()).collect();
+            let expected_vectors: Vec<Vec<f64>> = data
+                .iter()
+                .map(|t| {
+                    let mut out = vec![0.0; 10];
+                    out[t.output as usize] = 1.0;
+                    out
+                })
+                .collect();
+            let expected: Vec<&[f64]> = expected_vectors.iter().map(|v| v.as_slice()).collect();
 
-                let opt = Optimizer::new(0.01, 32, Loss::CrossEntropy);
-                opt.train(&mut network, &inputs, &expected, 100)?;
-                println!("Done for sample {} out of 10.", i + 1);
-            }
+            let epochs = rest.trim().parse::<usize>().unwrap_or(10);
+            println!("Will run for {epochs} epochs!");
+            let opt = Optimizer::new(0.04, 128, Loss::CrossEntropy);
+            opt.train_print_epoch(&mut network, &inputs, &expected, epochs, Some(true))?;
             println!("Successfully trained. Now we save!");
         }
         "test" => {
