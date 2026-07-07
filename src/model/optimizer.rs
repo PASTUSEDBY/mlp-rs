@@ -1,4 +1,4 @@
-use crate::model::{ModelError, strategy::Activation};
+use crate::model::{ModelError, intermediate::IntermediateCache, strategy::Activation};
 
 use super::{Layer, Network, strategy::Loss};
 use rand::{rng as rngfn, seq::SliceRandom};
@@ -80,6 +80,7 @@ impl Optimizer {
             })
             .collect();
 
+        let mut im = network.intermediate_cache();
         for epoch in 0..epochs {
             // shuffle the input and feed it
             if verbose {
@@ -92,7 +93,7 @@ impl Optimizer {
                     grad.weights.fill(0.0);
                     grad.biases.fill(0.0);
                 }
-                self.train_batch(network, inputs, exps, inp_indices, &mut grads);
+                self.train_batch(network, inputs, exps, inp_indices, &mut grads, &mut im);
             }
         }
 
@@ -106,26 +107,29 @@ impl Optimizer {
         exps: &[&[f64]],
         inp_indices: &[usize],
         grads: &mut [LayerGradient],
+        im: &mut IntermediateCache,
     ) {
+        let last_layer = net.layers.len() - 1;
         for &inp_idx in inp_indices {
-            // just to remove the bounds checks cuz we know it's safe
-            let (input, expected) =
-                unsafe { (*inps.get_unchecked(inp_idx), *exps.get_unchecked(inp_idx)) };
-            let fw_cache = net.forward(input);
-            // following unwraps are safe
-            let predicted = fw_cache.last().unwrap();
-            let delta_out =
-                self.loss
-                    .output_delta(&net.layers.last().unwrap().activation, predicted, expected);
-            let deltas = net.backward(&fw_cache, delta_out);
+            let (input, expected) = (inps[inp_idx], exps[inp_idx]);
+
+            im.clear_inner(); // clear previous cache
+            net.forward(input, &mut im.fw_cache);
+            self.loss.output_delta(
+                &net.layers[last_layer].activation,
+                &im.fw_cache[last_layer],
+                expected,
+                &mut im.deltas[last_layer],
+            );
+            net.backward(&im.fw_cache, &mut im.deltas);
 
             for (l_idx, layer) in net.layers.iter().enumerate() {
                 let layer_input = if l_idx == 0 {
                     input
                 } else {
-                    &fw_cache[l_idx - 1]
+                    &im.fw_cache[l_idx - 1]
                 };
-                let delta = &deltas[l_idx];
+                let delta = &im.deltas[l_idx];
                 let grad = &mut grads[l_idx];
                 self.layer_gradients(layer, layer_input, delta, grad);
             }
@@ -133,17 +137,18 @@ impl Optimizer {
 
         // now we update with the average weights and biases gradient
         let batch_size = inp_indices.len() as f64;
+        let adjustment = self.learning_rate / batch_size;
         for (layer, grad) in net.layers.iter_mut().zip(grads) {
             layer
                 .matrix
                 .iter_mut()
                 .zip(&grad.weights)
-                .for_each(|(w, g)| *w -= self.learning_rate * g / batch_size);
+                .for_each(|(w, g)| *w -= g * adjustment);
             layer
                 .biases
                 .iter_mut()
                 .zip(&grad.biases)
-                .for_each(|(b, g)| *b -= self.learning_rate * g / batch_size);
+                .for_each(|(b, g)| *b -= g * adjustment);
         }
     }
 
@@ -154,17 +159,17 @@ impl Optimizer {
         delta: &[f64],
         grad: &mut LayerGradient,
     ) {
-        for ((neuron_row, grad_bias), &gradient) in grad
+        for ((neuron_row, grad_bias), &neuron_delta) in grad
             .weights
             .chunks_exact_mut(layer.inputs)
             .zip(&mut grad.biases)
             .zip(delta)
         {
             for (grad_wt, &x) in neuron_row.iter_mut().zip(layer_input) {
-                *grad_wt += gradient * x;
+                *grad_wt += neuron_delta * x;
             }
 
-            *grad_bias += gradient;
+            *grad_bias += neuron_delta;
         }
     }
 }

@@ -14,16 +14,16 @@ pub enum Activation {
     SoftMax,
 }
 
-fn component_apply(xs: impl IntoIterator<Item = f64>, f: impl Fn(f64) -> f64) -> Vec<f64> {
-    xs.into_iter().map(f).collect()
+fn component_apply(xs: impl IntoIterator<Item = f64>, f: impl Fn(f64) -> f64, out: &mut Vec<f64>) {
+    out.extend(xs.into_iter().map(f));
 }
 
 impl Activation {
-    pub(super) fn apply(&self, xs: impl IntoIterator<Item = f64>) -> Vec<f64> {
+    pub(super) fn apply(&self, xs: impl IntoIterator<Item = f64>, out: &mut Vec<f64>) {
         match self {
-            Activation::Sigmoid => component_apply(xs, |x| 1.0 / (1.0 + (-x).exp())),
-            Activation::LReLU(alpha) => component_apply(xs, |x| x.max(*alpha * x)),
-            Activation::Linear => component_apply(xs, std::convert::identity),
+            Activation::Sigmoid => component_apply(xs, |x| 1.0 / (1.0 + (-x).exp()), out),
+            Activation::LReLU(alpha) => component_apply(xs, |x| x.max(*alpha * x), out),
+            Activation::Linear => component_apply(xs, std::convert::identity, out),
             Activation::SoftMax => {
                 let xs: Vec<f64> = xs.into_iter().collect();
                 // so the issue is, exp(M) where M is a big enough number, will overflow
@@ -40,7 +40,7 @@ impl Activation {
                     exps.push(exp);
                 }
 
-                exps.into_iter().map(|exp| exp / denominator).collect()
+                out.extend(exps.into_iter().map(|exp| exp / denominator));
             }
         }
     }
@@ -87,6 +87,7 @@ pub enum Loss {
 
 impl Loss {
     #[allow(unused)] // TODO: Calculate the losses and return it?
+    // TODO: the `/ num` in MeanSquare might be problematic
     pub(super) fn loss(&self, actv: &Activation, predicted: &[f64], expected: &[f64]) -> f64 {
         let num = predicted.len() as f64;
         const EPSILON: f64 = 1e-10;
@@ -110,15 +111,17 @@ impl Loss {
         actv: &Activation,
         predicted: &[f64],
         expected: &[f64],
-    ) -> Vec<f64> {
-        predicted
+        out: &mut Vec<f64>,
+    ) {
+        let it = predicted
             .iter()
             .zip(expected)
             .map(|(&o, &e)| match (actv, self) {
                 (Activation::SoftMax | Activation::Sigmoid, Loss::CrossEntropy) => o - e,
                 (_, Loss::MeanSquare) => (o - e) * actv.derivative_with_output(o),
                 _ => unreachable!("this should never happen"),
-            })
-            .collect()
+            });
+
+        out.extend(it);
     }
 }

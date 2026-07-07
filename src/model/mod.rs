@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+mod intermediate;
 mod layer;
 mod network;
 mod optimizer;

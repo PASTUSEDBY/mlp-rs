@@ -1,4 +1,9 @@
-use std::io::{Read, Seek, Write};
+use std::{
+    io::{Read, Seek, Write},
+    mem::swap,
+};
+
+use crate::model::intermediate::IntermediateCache;
 
 use super::ModelError;
 use super::layer::Layer;
@@ -61,6 +66,10 @@ impl Network {
         })
     }
 
+    pub(super) fn intermediate_cache(&self) -> IntermediateCache {
+        IntermediateCache::new(self)
+    }
+
     pub fn save<W: Write + Seek>(&self, dest: &mut W) -> Result<(), ModelError> {
         self.write_le(dest)?;
         Ok(())
@@ -76,6 +85,7 @@ impl Network {
     // gotta keep the dup logic
     pub fn predict(&self, inputs: &[f64]) -> Vec<f64> {
         let mut curr_in = inputs.to_vec();
+        let mut this_out = vec![];
 
         for layer in &self.layers {
             let raw_scores = layer
@@ -89,8 +99,9 @@ impl Network {
                         .fold(bias, |acc, (&w, &x)| acc + w * x)
                 });
 
-            let this_out = layer.activation.apply(raw_scores);
-            curr_in = this_out;
+            layer.activation.apply(raw_scores, &mut this_out);
+            swap(&mut curr_in, &mut this_out);
+            this_out.clear();
         }
 
         curr_in
@@ -98,10 +109,9 @@ impl Network {
 
     // returns the activation cache for each neuron
     // for now, the activation value is stored cuz the derivative is easily computable from it
-    pub fn forward(&self, inputs: &[f64]) -> Vec<Vec<f64>> {
-        let mut output: Vec<Vec<f64>> = Vec::with_capacity(self.layers.len());
+    pub(super) fn forward(&self, inputs: &[f64], fw_cache: &mut Vec<Vec<f64>>) {
         let mut curr_in = inputs;
-        for layer in &self.layers {
+        for (layer, cache) in self.layers.iter().zip(fw_cache) {
             let raw_scores = layer
                 .matrix
                 .chunks_exact(layer.inputs)
@@ -113,49 +123,34 @@ impl Network {
                         .fold(bias, |acc, (&w, &x)| acc + w * x)
                 });
 
-            let layer_out = layer.activation.apply(raw_scores);
-            output.push(layer_out);
-            // these outputs are our next inputs
-            curr_in = output.last().unwrap(); // always guaranteed to exist
+            layer.activation.apply(raw_scores, cache);
+            curr_in = cache;
         }
-
-        output
     }
 
     // returns the delta vectors from the backpropagation, in order
-    pub fn backward(&self, fw_cache: &[Vec<f64>], delta_out: Vec<f64>) -> Vec<Vec<f64>> {
-        // and lets store the delta vectors, maybe ill change it later
-        let mut deltas = Vec::with_capacity(self.layers.len());
-        deltas.push(delta_out);
-
-        // now lets calculate the hidden deltas
-        // BACKpropagation
+    pub(super) fn backward(&self, fw_cache: &[Vec<f64>], deltas: &mut Vec<Vec<f64>>) {
         for layer_idx in (0..self.layers.len() - 1).rev() {
             let layer = &self.layers[layer_idx];
             let next_layer = &self.layers[layer_idx + 1];
             let hidden_out = &fw_cache[layer_idx];
-            let delta_next = deltas.last().unwrap(); // safe
+            // we run into an annoying borrow checker issue here, so what we do is
+            // explicitly prove that they are disjoint
+            let (left, right) = deltas.split_at_mut(layer_idx + 1);
+            let delta_next = &right[0];
+            let delta_curr = &mut left[layer_idx];
 
-            let delta_curr: Vec<f64> = hidden_out
-                .iter()
-                .enumerate()
-                .map(|(curr_neuron, &h_out)| {
-                    let error = delta_next
-                        .iter()
-                        .enumerate()
-                        .map(|(next_neuron, &delta)| {
-                            next_layer.weight(next_neuron, curr_neuron) * delta
-                        })
-                        .sum::<f64>();
+            delta_curr.extend(hidden_out.iter().enumerate().map(|(curr_neuron, &h_out)| {
+                let error = delta_next
+                    .iter()
+                    .enumerate()
+                    .map(|(next_neuron, &delta)| {
+                        next_layer.weight(next_neuron, curr_neuron) * delta
+                    })
+                    .sum::<f64>();
 
-                    error * layer.activation.derivative_with_output(h_out)
-                })
-                .collect();
-
-            deltas.push(delta_curr);
+                error * layer.activation.derivative_with_output(h_out)
+            }));
         }
-
-        deltas.reverse(); // make the vectors be in order
-        deltas
     }
 }
