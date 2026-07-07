@@ -5,7 +5,7 @@ use super::layer::Layer;
 use super::strategy::Activation;
 
 use binrw::{BinReaderExt, BinWrite, binrw};
-use rand::{rng as rngfn /*, seq::SliceRandom*/};
+use rand::rng as rngfn;
 use rand_distr::{Distribution, Normal};
 
 #[binrw]

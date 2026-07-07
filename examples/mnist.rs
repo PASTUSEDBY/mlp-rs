@@ -3,7 +3,7 @@ use image::{ColorType, ImageReader, Luma, imageops::FilterType};
 use rand::random_range;
 use std::{
     fs::{File, create_dir},
-    io::{self, BufRead},
+    io::{self, BufRead, BufWriter, Write},
     path::Path,
 };
 
@@ -75,6 +75,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     let res = File::open(MODEL)
+        .map(BufReader::new)
         .map_err(ModelError::from)
         .and_then(|mut f| Network::load(&mut f));
 
@@ -124,7 +125,7 @@ fn main() -> anyhow::Result<()> {
             let epochs = rest.trim().parse::<usize>().unwrap_or(10);
             println!("Will run for {epochs} epochs!");
             let opt = Optimizer::new(0.04, 128, Loss::CrossEntropy);
-            opt.train_print_epoch(&mut network, &inputs, &expected, epochs, Some(true))?;
+            opt.train_verbose(&mut network, &inputs, &expected, epochs)?;
             println!("Successfully trained. Now we save!");
         }
         "test" => {
@@ -187,8 +188,13 @@ fn main() -> anyhow::Result<()> {
     };
 
     // finally save it
-    let mut file = File::options().write(true).create(true).open(MODEL)?;
+    let mut file = File::options()
+        .write(true)
+        .create(true)
+        .open(MODEL)
+        .map(BufWriter::new)?;
     network.save(&mut file)?;
+    file.flush()?;
 
     Ok(())
 }

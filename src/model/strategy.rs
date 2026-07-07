@@ -26,7 +26,7 @@ impl Activation {
             Activation::Linear => component_apply(xs, std::convert::identity),
             Activation::SoftMax => {
                 let xs: Vec<f64> = xs.into_iter().collect();
-                // so the issue is, exp(M) where M is a big enough number will overflow
+                // so the issue is, exp(M) where M is a big enough number, will overflow
                 // we need to get the maximum element, and reduce it
                 // won't affect the end answer cuz its a probability and the factor will cancel out
                 let max = xs.iter().copied().fold(f64::NEG_INFINITY, f64::max);

@@ -12,7 +12,6 @@ use std::io::Error as IOError;
 use strategy::{Activation, Loss};
 
 // re exports for convenience
-#[allow(unused_imports)]
 pub use layer::Layer;
 pub use network::Network;
 pub use optimizer::Optimizer;
@@ -25,6 +24,10 @@ pub enum ModelError {
     ActivationLayerMismatch(usize, usize),
     #[error("activation function {0:?} is not compatible with the loss function {1:?}")]
     BadCombination(Activation, Loss),
+    #[error(
+        "input and expected lengths for training set must be same, received input: {0} and expected: {1}"
+    )]
+    InputExpectedMismatch(usize, usize),
     #[error(transparent)]
     BadNormalParameters(#[from] NormalError),
     #[error(transparent)]
