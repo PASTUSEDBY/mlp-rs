@@ -1,6 +1,10 @@
-use crate::model::{ModelError, intermediate::IntermediateCache, strategy::Activation};
+use std::sync::Arc;
 
-use super::{Layer, Network, strategy::Loss};
+use super::{
+    Layer, ModelError, Network,
+    intermediate::IntermediateCache,
+    strategy::{Activation, Loss},
+};
 use rand::{rng as rngfn, seq::SliceRandom};
 
 #[derive(Debug)]
@@ -139,13 +143,13 @@ impl Optimizer {
         let batch_size = inp_indices.len() as f64;
         let adjustment = self.learning_rate / batch_size;
         for (layer, grad) in net.layers.iter_mut().zip(grads) {
-            layer
-                .matrix
+            Arc::get_mut(&mut layer.matrix)
+                .expect("This should never happen!")
                 .iter_mut()
                 .zip(&grad.weights)
                 .for_each(|(w, g)| *w -= g * adjustment);
-            layer
-                .biases
+            Arc::get_mut(&mut layer.biases)
+                .expect("well well well")
                 .iter_mut()
                 .zip(&grad.biases)
                 .for_each(|(b, g)| *b -= g * adjustment);
