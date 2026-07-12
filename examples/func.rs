@@ -8,7 +8,7 @@ use std::{
 
 use mlp::{
     ModelError, Network, Optimizer,
-    strategy::{Activation, Loss},
+    strategy::{Activation, ExecutionStrategy, Loss},
 };
 
 const MODEL: &'static str = "./cache/func_model.bin";
@@ -30,7 +30,7 @@ fn train(network: &mut Network, factor: f64, batches: usize, epochs: usize) -> a
             outputs.push(vec![target(x)]);
         }
 
-        let opt = Optimizer::new(0.01, 64, Loss::MeanSquare);
+        let opt = Optimizer::new(0.01, 64, Loss::MeanSquare, ExecutionStrategy::Sequential);
         opt.train(network, inputs, outputs, epochs)?;
     }
 

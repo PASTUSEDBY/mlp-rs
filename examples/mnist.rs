@@ -10,7 +10,7 @@ use std::{
 use binrw::io::BufReader;
 use mlp::{
     ModelError, Network, Optimizer,
-    strategy::{Activation, Loss},
+    strategy::{Activation, ExecutionStrategy, Loss},
 };
 
 const MODEL: &'static str = "./cache/mnist_model.bin";
@@ -124,8 +124,15 @@ fn main() -> anyhow::Result<()> {
 
             let epochs = rest.trim().parse::<usize>().unwrap_or(10);
             println!("Will run for {epochs} epochs!");
-            let opt = Optimizer::new(0.04, 128, Loss::CrossEntropy);
-            opt.train_concurrent(&mut network, inputs, expected, epochs)?;
+            let opt = Optimizer::new(
+                0.04,
+                128,
+                Loss::CrossEntropy,
+                ExecutionStrategy::Concurrent { workers: None },
+            );
+            opt.train_epoch_handler(&mut network, inputs, expected, epochs, |e| {
+                eprintln!("Done epoch {}", e + 1)
+            })?;
             println!("Successfully trained. Now we save!");
         }
         "test" => {

@@ -1,3 +1,4 @@
+use mlp::strategy::ExecutionStrategy;
 use mlp::{Network, strategy::Activation};
 use mlp::{Optimizer, strategy::Loss};
 
@@ -19,7 +20,7 @@ fn main() -> anyhow::Result<()> {
             Activation::Sigmoid,
         ],
     )?;
-    let optimizer = Optimizer::new(0.01, 2, Loss::CrossEntropy);
+    let optimizer = Optimizer::new(0.01, 2, Loss::CrossEntropy, ExecutionStrategy::Sequential);
     optimizer.train(&mut network, inputs.clone(), expected, EPOCHS)?;
 
     for input in inputs {
