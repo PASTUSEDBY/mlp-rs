@@ -1,6 +1,5 @@
 use super::strategy::Activation;
 use binrw::binrw;
-use std::sync::Arc;
 
 #[binrw]
 #[brw(little)]
@@ -17,12 +16,12 @@ pub struct Layer {
     pub inputs: usize, // the input weights (cols)
 
     #[br(count = inputs * neurons, map = Vec::into)]
-    #[bw(map = Arc::as_ref)]
-    pub(super) matrix: Arc<[f64]>, // flat array, rows x columns
+    #[bw(map = Box::as_ref)]
+    pub(super) matrix: Box<[f64]>, // flat array, rows x columns
 
     #[br(count = neurons, map = Vec::into)]
-    #[bw(map = Arc::as_ref)]
-    pub(super) biases: Arc<[f64]>, // rows len
+    #[bw(map = Box::as_ref)]
+    pub(super) biases: Box<[f64]>, // rows len
 }
 
 impl Layer {

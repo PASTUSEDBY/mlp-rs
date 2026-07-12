@@ -30,11 +30,8 @@ fn train(network: &mut Network, factor: f64, batches: usize, epochs: usize) -> a
             outputs.push(vec![target(x)]);
         }
 
-        let inputs: Vec<&[f64]> = inputs.iter().map(Vec::as_slice).collect();
-        let outputs: Vec<&[f64]> = outputs.iter().map(Vec::as_slice).collect();
-
         let opt = Optimizer::new(0.01, 64, Loss::MeanSquare);
-        opt.train(network, &inputs, &outputs, epochs)?;
+        opt.train(network, inputs, outputs, epochs)?;
     }
 
     Ok(())

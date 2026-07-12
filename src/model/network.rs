@@ -1,6 +1,7 @@
 use std::{
     io::{Read, Seek, Write},
     mem,
+    sync::Arc,
 };
 
 use super::{ModelError, intermediate::IntermediateCache, layer::Layer, strategy::Activation};
@@ -11,7 +12,7 @@ use rand_distr::{Distribution, Normal};
 
 #[binrw]
 #[brw(little, magic = b"\0MLP_RS\n")]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Network {
     // this field is temporary and only used by the binrw crate
     // to pack the length and parse it when unpacking
@@ -22,8 +23,8 @@ pub struct Network {
     // a Layer here defines the layers trainable (contains weights)
     // while the input layer is a simple f64 slice of a vector like object
     #[br(count = layer_len as usize, map = Vec::into)]
-    #[bw(map = Box::as_ref)]
-    pub layers: Box<[Layer]>,
+    #[bw(map = Arc::as_ref)]
+    pub layers: Arc<[Layer]>,
 }
 
 impl Network {
@@ -59,7 +60,7 @@ impl Network {
         }
 
         Ok(Network {
-            layers: network_layers.into_boxed_slice(),
+            layers: network_layers.into(),
         })
     }
 
@@ -84,7 +85,7 @@ impl Network {
         let mut curr_in = inputs.to_vec();
         let mut this_out = vec![];
 
-        for layer in &self.layers {
+        for layer in self.layers.iter() {
             let raw_scores = layer
                 .matrix
                 .chunks_exact(layer.inputs)

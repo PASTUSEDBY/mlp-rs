@@ -111,8 +111,7 @@ fn main() -> anyhow::Result<()> {
         "train" => {
             println!("Loading full data set, this might take a while to train...");
             let data = load_dataset(MNIST_TRAIN, 60_000, 1)?;
-            let inputs: Vec<&[f64]> = data.iter().map(|t| t.data.as_slice()).collect();
-            let expected_vectors: Vec<Vec<f64>> = data
+            let expected: Vec<Vec<f64>> = data
                 .iter()
                 .map(|t| {
                     let mut out = vec![0.0; 10];
@@ -120,12 +119,13 @@ fn main() -> anyhow::Result<()> {
                     out
                 })
                 .collect();
-            let expected: Vec<&[f64]> = expected_vectors.iter().map(|v| v.as_slice()).collect();
+
+            let inputs: Vec<_> = data.into_iter().map(|t| t.data).collect();
 
             let epochs = rest.trim().parse::<usize>().unwrap_or(10);
             println!("Will run for {epochs} epochs!");
             let opt = Optimizer::new(0.04, 128, Loss::CrossEntropy);
-            opt.train_verbose(&mut network, &inputs, &expected, epochs)?;
+            opt.train_concurrent(&mut network, inputs, expected, epochs)?;
             println!("Successfully trained. Now we save!");
         }
         "test" => {
