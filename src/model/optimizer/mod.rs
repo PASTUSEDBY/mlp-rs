@@ -56,7 +56,7 @@ impl Optimizer {
         self.train_impl::<fn(usize) -> ()>(network, inputs, exps, epochs, None)
     }
 
-    pub fn train_epoch_handler<F: Fn(usize) -> ()>(
+    pub fn train_epoch_handler<F: FnMut(usize) -> ()>(
         &self,
         network: &mut Network,
         inputs: Vec<Vec<f64>>,
@@ -67,7 +67,7 @@ impl Optimizer {
         self.train_impl(network, inputs, exps, epochs, Some(on_epochs_finish))
     }
 
-    fn train_impl<F: Fn(usize) -> ()>(
+    fn train_impl<F: FnMut(usize) -> ()>(
         &self,
         network: &mut Network,
         inputs: Vec<Vec<f64>>,

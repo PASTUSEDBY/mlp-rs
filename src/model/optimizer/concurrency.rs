@@ -9,13 +9,13 @@ use rand::{rng as rngfn, seq::SliceRandom};
 use std::sync::{Arc, mpsc};
 
 impl Optimizer {
-    pub(super) fn train_concurrent<F: Fn(usize) -> ()>(
+    pub(super) fn train_concurrent<F: FnMut(usize) -> ()>(
         &self,
         network: &mut Network,
         inputs: Vec<Vec<f64>>,
         exps: Vec<Vec<f64>>,
         epochs: usize,
-        on_epochs_finish: Option<F>,
+        mut on_epochs_finish: Option<F>,
     ) {
         let pool = self.pool.as_ref().unwrap();
         let num_workers = pool.max_count();
@@ -104,7 +104,7 @@ impl Optimizer {
                 self.update_batch(layers, &main_im_cache.layer_grads, inp_indices.len() as f64);
             }
 
-            if let Some(ref func) = on_epochs_finish {
+            if let Some(ref mut func) = on_epochs_finish {
                 func(epoch);
             };
         }

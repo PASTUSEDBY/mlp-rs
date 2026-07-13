@@ -4,13 +4,13 @@ use rand::{rng as rngfn, seq::SliceRandom};
 use std::sync::Arc;
 
 impl Optimizer {
-    pub(super) fn train_sequential<F: Fn(usize) -> ()>(
+    pub(super) fn train_sequential<F: FnMut(usize) -> ()>(
         &self,
         network: &mut Network,
         inputs: Vec<Vec<f64>>,
         exps: Vec<Vec<f64>>,
         epochs: usize,
-        on_epochs_finish: Option<F>,
+        mut on_epochs_finish: Option<F>,
     ) {
         let mut rng = rngfn();
         let mut indices: Vec<usize> = (0..inputs.len()).collect();
@@ -39,7 +39,7 @@ impl Optimizer {
                 );
             }
 
-            if let Some(ref func) = on_epochs_finish {
+            if let Some(ref mut func) = on_epochs_finish {
                 func(epoch);
             };
         }
