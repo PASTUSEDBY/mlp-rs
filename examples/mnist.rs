@@ -198,6 +198,7 @@ fn main() -> anyhow::Result<()> {
     let mut file = File::options()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(MODEL)
         .map(BufWriter::new)?;
     network.save(&mut file)?;
