@@ -125,3 +125,9 @@ impl Loss {
         out.extend(it);
     }
 }
+
+#[derive(Debug)]
+pub enum ExecutionStrategy {
+    Sequential,
+    Concurrent { workers: Option<usize> },
+}

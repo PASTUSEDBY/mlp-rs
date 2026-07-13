@@ -1,21 +1,18 @@
 use std::{
     io::{Read, Seek, Write},
-    mem::swap,
+    mem,
+    sync::Arc,
 };
 
-use crate::model::intermediate::IntermediateCache;
-
-use super::ModelError;
-use super::layer::Layer;
-use super::strategy::Activation;
+use super::{ModelError, intermediate::IntermediateCache, layer::Layer, strategy::Activation};
 
 use binrw::{BinReaderExt, BinWrite, binrw};
 use rand::rng as rngfn;
 use rand_distr::{Distribution, Normal};
 
 #[binrw]
-#[brw(little, magic = b"MLP_RS")]
-#[derive(Debug)]
+#[brw(little, magic = b"\0MLP_RS\n")]
+#[derive(Debug, Clone)]
 pub struct Network {
     // this field is temporary and only used by the binrw crate
     // to pack the length and parse it when unpacking
@@ -25,8 +22,9 @@ pub struct Network {
     // even though the minimum size must be 2 theoretically,
     // a Layer here defines the layers trainable (contains weights)
     // while the input layer is a simple f64 slice of a vector like object
-    #[br(count = layer_len as usize)]
-    pub layers: Vec<Layer>,
+    #[br(count = layer_len as usize, map = Vec::into)]
+    #[bw(map = Arc::as_ref)]
+    pub layers: Arc<[Layer]>,
 }
 
 impl Network {
@@ -49,8 +47,8 @@ impl Network {
             let std_dev = actv.std_dev(inputs, neurons);
             let normal = Normal::new(0.0, std_dev)?.sample_iter(&mut rng);
 
-            let matrix: Vec<f64> = normal.take(inputs * neurons).collect();
-            let biases: Vec<f64> = vec![0.0; neurons];
+            let matrix = normal.take(inputs * neurons).collect::<Vec<_>>().into();
+            let biases = vec![0.0; neurons].into();
 
             network_layers.push(Layer {
                 activation: actv.clone(),
@@ -62,7 +60,7 @@ impl Network {
         }
 
         Ok(Network {
-            layers: network_layers,
+            layers: network_layers.into(),
         })
     }
 
@@ -87,11 +85,11 @@ impl Network {
         let mut curr_in = inputs.to_vec();
         let mut this_out = vec![];
 
-        for layer in &self.layers {
+        for layer in self.layers.iter() {
             let raw_scores = layer
                 .matrix
                 .chunks_exact(layer.inputs)
-                .zip(&layer.biases)
+                .zip(layer.biases.iter())
                 .map(|(chunk, &bias)| {
                     chunk
                         .iter()
@@ -100,7 +98,7 @@ impl Network {
                 });
 
             layer.activation.apply(raw_scores, &mut this_out);
-            swap(&mut curr_in, &mut this_out);
+            mem::swap(&mut curr_in, &mut this_out);
             this_out.clear();
         }
 
@@ -115,7 +113,7 @@ impl Network {
             let raw_scores = layer
                 .matrix
                 .chunks_exact(layer.inputs)
-                .zip(&layer.biases)
+                .zip(layer.biases.iter())
                 .map(|(chunk, &bias)| {
                     chunk
                         .iter()
