@@ -72,7 +72,7 @@ fn main() -> anyhow::Result<()> {
                 FACTOR,
                 100,
                 1_000,
-                ExecutionStrategy::Concurrent { workers: None },
+                ExecutionStrategy::Sequential
             )?;
             net
         }
