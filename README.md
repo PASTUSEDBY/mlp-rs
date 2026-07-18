@@ -20,7 +20,7 @@ let mut network = Network::new(
 )?;
 
 // Optimize it
-let opt = Optimizer::new(0.01, 32, Loss::CrossEntropy);
+let opt = Optimizer::new(0.01, 32, Loss::CrossEntropy, ExecutionStrategy::Concurrent { workers: Some(4) });
 opt.train(&mut network, &inputs, &expected, num_epochs)?;
 
 // Finally save it maybe
